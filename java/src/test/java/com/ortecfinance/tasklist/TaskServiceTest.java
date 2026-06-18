@@ -57,6 +57,13 @@ class TaskServiceTest {
     }
 
     @Test
+    void assigns_sequential_project_ids() {
+        assertEquals(1, service.addProject("a").getId());
+        assertEquals(2, service.addProject("b").getId());
+        assertEquals(3, service.addProject("c").getId());
+    }
+
+    @Test
     void checks_and_unchecks_a_task() {
         long id = givenATask();
 
@@ -73,17 +80,52 @@ class TaskServiceTest {
     }
 
     @Test
+    void adds_a_task_to_a_project_by_id() {
+        long projectId = service.addProject("secrets").getId();
+
+        Optional<Task> added = service.addTask(projectId, "Eat more donuts.");
+
+        assertTrue(added.isPresent());
+        assertEquals("Eat more donuts.", added.get().getDescription());
+    }
+
+    @Test
+    void does_not_add_a_task_when_the_project_id_is_unknown() {
+        assertTrue(service.addTask(99L, "Nope").isEmpty());
+    }
+
+    @Test
     void sets_a_deadline_on_an_existing_task() {
         long id = givenATask();
         LocalDate deadline = LocalDate.of(2024, 11, 25);
 
-        assertTrue(service.setDeadline(id, deadline));
-        assertEquals(deadline, findTask(id).getDeadline());
+        Optional<Task> updated = service.setDeadline(id, deadline);
+
+        assertTrue(updated.isPresent());
+        assertEquals(deadline, updated.get().getDeadline());
     }
 
     @Test
     void reports_when_setting_a_deadline_on_an_unknown_task() {
-        assertFalse(service.setDeadline(99, LocalDate.now()));
+        assertTrue(service.setDeadline(99, LocalDate.now()).isEmpty());
+    }
+
+    @Test
+    void groups_tasks_by_deadline_chronologically_and_separates_those_without() {
+        service.addProject("secrets");
+        service.addProject("training");
+        long donuts = service.addTask("secrets", "Eat more donuts.").orElseThrow().getId();
+        service.addTask("training", "Refactor the codebase");
+        long design = service.addTask("training", "Interaction-Driven Design").orElseThrow().getId();
+
+        // Set the later date first to prove the result is sorted, not insertion-ordered.
+        service.setDeadline(design, LocalDate.of(2021, 11, 13));
+        service.setDeadline(donuts, LocalDate.of(2021, 11, 11));
+
+        assertEquals(
+            List.of(LocalDate.of(2021, 11, 11), LocalDate.of(2021, 11, 13)),
+            List.copyOf(service.tasksByDeadline().keySet()));
+        assertEquals(List.of("training"), List.copyOf(service.tasksWithoutDeadline().keySet()));
     }
 
     @Test

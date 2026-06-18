@@ -77,7 +77,7 @@ public final class TaskList implements Runnable {
                 view.showTasksDueToday(service.getProjects());
                 break;
             case "view-by-deadline":
-                view.showByDeadline(service.getProjects());
+                view.showByDeadline(service.tasksByDeadline(), service.tasksWithoutDeadline());
                 break;
             case "help":
                 view.help();
@@ -144,7 +144,7 @@ public final class TaskList implements Runnable {
         if (date.isEmpty()) {
             return;
         }
-        if (!service.setDeadline(id.get(), date.get())) {
+        if (service.setDeadline(id.get(), date.get()).isEmpty()) {
             view.taskNotFound(id.get());
         }
     }
