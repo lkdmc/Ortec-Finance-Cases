@@ -69,6 +69,9 @@ public final class TaskList implements Runnable {
             case "deadline":
                 deadline(commandRest[1]);
                 break;
+            case "today":
+                today();
+                break;
             case "help":
                 help();
                 break;
@@ -82,10 +85,34 @@ public final class TaskList implements Runnable {
         for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
             out.println(project.getKey());
             for (Task task : project.getValue()) {
-                out.printf("    [%c] %d: %s%n", (task.isDone() ? 'x' : ' '), task.getId(), task.getDescription());
+                printTask(task);
             }
             out.println();
         }
+    }
+
+    private void today() {
+        LocalDate today = LocalDate.now();
+        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
+            List<Task> dueToday = new ArrayList<>();
+            for (Task task : project.getValue()) {
+                if (today.equals(task.getDeadline())) {
+                    dueToday.add(task);
+                }
+            }
+            if (dueToday.isEmpty()) {
+                continue;
+            }
+            out.println(project.getKey());
+            for (Task task : dueToday) {
+                printTask(task);
+            }
+            out.println();
+        }
+    }
+
+    private void printTask(Task task) {
+        out.printf("    [%c] %d: %s%n", (task.isDone() ? 'x' : ' '), task.getId(), task.getDescription());
     }
 
     private void add(String commandLine) {
@@ -159,6 +186,7 @@ public final class TaskList implements Runnable {
         out.println("  check <task ID>");
         out.println("  uncheck <task ID>");
         out.println("  deadline <task ID> <date (dd-MM-yyyy)>");
+        out.println("  today");
         out.println();
     }
 
