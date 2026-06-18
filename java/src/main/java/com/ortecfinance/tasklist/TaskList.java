@@ -12,15 +12,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Console interface for the task list.
+ *
+ * <p>Reads commands from the input, delegates all task-management work to
+ * {@link TaskService}, and formats the results for the console. It holds no
+ * task state of its own, so the same {@code TaskService} could equally back a
+ * REST API or another interface.
+ */
 public final class TaskList implements Runnable {
     private static final String QUIT = "quit";
     private static final DateTimeFormatter DEADLINE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-    private final Map<String, Project> projects = new LinkedHashMap<>();
+    private final TaskService service = new TaskService();
     private final BufferedReader in;
     private final PrintWriter out;
-
-    private long lastId = 0;
 
     public static void startConsole() {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
@@ -86,7 +92,7 @@ public final class TaskList implements Runnable {
     }
 
     private void show() {
-        for (Project project : projects.values()) {
+        for (Project project : service.getProjects()) {
             out.println(project.getName());
             for (Task task : project.getTasks()) {
                 printTask(task);
@@ -97,7 +103,7 @@ public final class TaskList implements Runnable {
 
     private void today() {
         LocalDate today = LocalDate.now();
-        for (Project project : projects.values()) {
+        for (Project project : service.getProjects()) {
             List<Task> dueToday = new ArrayList<>();
             for (Task task : project.getTasks()) {
                 if (today.equals(task.getDeadline())) {
@@ -120,9 +126,11 @@ public final class TaskList implements Runnable {
     }
 
     private void viewByDeadline() {
+        // Group by deadline (TreeMap keeps the dates chronological), then by
+        // project name (LinkedHashMap keeps the original creation order).
         Map<LocalDate, Map<String, List<Task>>> tasksByDeadline = new TreeMap<>();
         Map<String, List<Task>> withoutDeadline = new LinkedHashMap<>();
-        for (Project project : projects.values()) {
+        for (Project project : service.getProjects()) {
             String projectName = project.getName();
             for (Task task : project.getTasks()) {
                 if (task.getDeadline() == null) {
@@ -171,17 +179,14 @@ public final class TaskList implements Runnable {
     }
 
     private void addProject(String name) {
-        projects.put(name, new Project(name));
+        service.addProject(name);
     }
 
     private void addTask(String projectName, String description) {
-        Project project = projects.get(projectName);
-        if (project == null) {
+        if (service.addTask(projectName, description).isEmpty()) {
             out.printf("Could not find a project with the name \"%s\".", projectName);
             out.println();
-            return;
         }
-        project.addTask(new Task(nextId(), description, false));
     }
 
     private void check(String idString) {
@@ -193,33 +198,21 @@ public final class TaskList implements Runnable {
     }
 
     private void setDone(String idString, boolean done) {
-        int id = Integer.parseInt(idString);
-        for (Project project : projects.values()) {
-            for (Task task : project.getTasks()) {
-                if (task.getId() == id) {
-                    task.setDone(done);
-                    return;
-                }
-            }
+        long id = Long.parseLong(idString);
+        if (!service.setDone(id, done)) {
+            out.printf("Could not find a task with an ID of %d.", id);
+            out.println();
         }
-        out.printf("Could not find a task with an ID of %d.", id);
-        out.println();
     }
 
     private void deadline(String commandLine) {
         String[] idDate = commandLine.split(" ", 2);
         long id = Long.parseLong(idDate[0]);
         LocalDate date = LocalDate.parse(idDate[1], DEADLINE_FORMAT);
-        for (Project project : projects.values()) {
-            for (Task task : project.getTasks()) {
-                if (task.getId() == id) {
-                    task.setDeadline(date);
-                    return;
-                }
-            }
+        if (!service.setDeadline(id, date)) {
+            out.printf("Could not find a task with an ID of %d.", id);
+            out.println();
         }
-        out.printf("Could not find a task with an ID of %d.", id);
-        out.println();
     }
 
     private void help() {
@@ -238,9 +231,5 @@ public final class TaskList implements Runnable {
     private void error(String command) {
         out.printf("I don't know what the command \"%s\" is.", command);
         out.println();
-    }
-
-    private long nextId() {
-        return ++lastId;
     }
 }
