@@ -57,6 +57,13 @@ class TaskServiceTest {
     }
 
     @Test
+    void assigns_sequential_project_ids() {
+        assertEquals(1, service.addProject("a").getId());
+        assertEquals(2, service.addProject("b").getId());
+        assertEquals(3, service.addProject("c").getId());
+    }
+
+    @Test
     void checks_and_unchecks_a_task() {
         long id = givenATask();
 

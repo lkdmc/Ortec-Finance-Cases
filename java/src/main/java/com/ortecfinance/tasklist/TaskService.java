@@ -17,11 +17,18 @@ import java.util.Optional;
  */
 public final class TaskService {
     private final Map<String, Project> projects = new LinkedHashMap<>();
-    private long lastId = 0;
+    private long lastTaskId = 0;
+    private long lastProjectId = 0;
 
-    /** Creates a new, empty project. */
-    public void addProject(String name) {
-        projects.put(name, new Project(name));
+    /**
+     * Creates a new, empty project.
+     *
+     * @return the created project, including its generated id.
+     */
+    public Project addProject(String name) {
+        Project project = new Project(nextProjectId(), name);
+        projects.put(name, project);
+        return project;
     }
 
     /**
@@ -34,7 +41,7 @@ public final class TaskService {
         if (project == null) {
             return Optional.empty();
         }
-        Task task = new Task(nextId(), description, false);
+        Task task = new Task(nextTaskId(), description, false);
         project.addTask(task);
         return Optional.of(task);
     }
@@ -83,7 +90,11 @@ public final class TaskService {
         return null;
     }
 
-    private long nextId() {
-        return ++lastId;
+    private long nextTaskId() {
+        return ++lastTaskId;
+    }
+
+    private long nextProjectId() {
+        return ++lastProjectId;
     }
 }

@@ -12,11 +12,17 @@ import java.util.List;
  * be mutated from the outside.
  */
 public final class Project {
+    private final long id;
     private final String name;
     private final List<Task> tasks = new ArrayList<>();
 
-    public Project(String name) {
+    public Project(long id, String name) {
+        this.id = id;
         this.name = name;
+    }
+
+    public long getId() {
+        return id;
     }
 
     public String getName() {
