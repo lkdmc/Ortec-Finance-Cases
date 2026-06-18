@@ -6,21 +6,24 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.time.format.DateTimeParseException;
+import java.util.Optional;
 
+/**
+ * Console interface for the task list.
+ *
+ * <p>Reads commands from the input, delegates the work to {@link TaskService}
+ * (the core logic) and the rendering to {@link ConsoleView} (the output). It
+ * owns no task state and no output format, so the same {@code TaskService}
+ * could equally back a REST API or another interface.
+ */
 public final class TaskList implements Runnable {
     private static final String QUIT = "quit";
     private static final DateTimeFormatter DEADLINE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-    private final Map<String, List<Task>> tasks = new LinkedHashMap<>();
+    private final TaskService service = new TaskService();
+    private final ConsoleView view;
     private final BufferedReader in;
-    private final PrintWriter out;
-
-    private long lastId = 0;
 
     public static void startConsole() {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
@@ -30,14 +33,13 @@ public final class TaskList implements Runnable {
 
     public TaskList(BufferedReader reader, PrintWriter writer) {
         this.in = reader;
-        this.out = writer;
+        this.view = new ConsoleView(writer);
     }
 
     public void run() {
-        out.println("Welcome to TaskList! Type 'help' for available commands.");
+        view.welcome();
         while (true) {
-            out.print("> ");
-            out.flush();
+            view.prompt();
             String command;
             try {
                 command = in.readLine();
@@ -54,193 +56,114 @@ public final class TaskList implements Runnable {
     private void execute(String commandLine) {
         String[] commandRest = commandLine.split(" ", 2);
         String command = commandRest[0];
+        String args = commandRest.length > 1 ? commandRest[1] : "";
         switch (command) {
             case "show":
-                show();
+                view.showProjects(service.getProjects());
                 break;
             case "add":
-                add(commandRest[1]);
+                add(args);
                 break;
             case "check":
-                check(commandRest[1]);
+                setDone(args, true, "check");
                 break;
             case "uncheck":
-                uncheck(commandRest[1]);
+                setDone(args, false, "uncheck");
                 break;
             case "deadline":
-                deadline(commandRest[1]);
+                deadline(args);
                 break;
             case "today":
-                today();
+                view.showTasksDueToday(service.getProjects());
                 break;
             case "view-by-deadline":
-                viewByDeadline();
+                view.showByDeadline(service.getProjects());
                 break;
             case "help":
-                help();
+                view.help();
                 break;
             default:
-                error(command);
+                view.unknownCommand(command);
                 break;
         }
     }
 
-    private void show() {
-        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
-            out.println(project.getKey());
-            for (Task task : project.getValue()) {
-                printTask(task);
-            }
-            out.println();
-        }
-    }
-
-    private void today() {
-        LocalDate today = LocalDate.now();
-        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
-            List<Task> dueToday = new ArrayList<>();
-            for (Task task : project.getValue()) {
-                if (today.equals(task.getDeadline())) {
-                    dueToday.add(task);
-                }
-            }
-            if (dueToday.isEmpty()) {
-                continue;
-            }
-            out.println(project.getKey());
-            for (Task task : dueToday) {
-                printTask(task);
-            }
-            out.println();
-        }
-    }
-
-    private void printTask(Task task) {
-        out.printf("    [%c] %d: %s%n", (task.isDone() ? 'x' : ' '), task.getId(), task.getDescription());
-    }
-
-    private void viewByDeadline() {
-        Map<LocalDate, Map<String, List<Task>>> tasksByDeadline = new TreeMap<>();
-        Map<String, List<Task>> withoutDeadline = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
-            String projectName = project.getKey();
-            for (Task task : project.getValue()) {
-                if (task.getDeadline() == null) {
-                    withoutDeadline.computeIfAbsent(projectName, name -> new ArrayList<>()).add(task);
-                } else {
-                    tasksByDeadline
-                        .computeIfAbsent(task.getDeadline(), date -> new LinkedHashMap<>())
-                        .computeIfAbsent(projectName, name -> new ArrayList<>())
-                        .add(task);
-                }
-            }
-        }
-
-        for (Map.Entry<LocalDate, Map<String, List<Task>>> entry : tasksByDeadline.entrySet()) {
-            out.println(entry.getKey().format(DEADLINE_FORMAT) + ":");
-            printTasksByProject(entry.getValue());
-        }
-        if (!withoutDeadline.isEmpty()) {
-            out.println("No deadline:");
-            printTasksByProject(withoutDeadline);
-        }
-    }
-
-    private void printTasksByProject(Map<String, List<Task>> tasksByProject) {
-        for (Map.Entry<String, List<Task>> project : tasksByProject.entrySet()) {
-            out.println("     " + project.getKey() + ":");
-            for (Task task : project.getValue()) {
-                printDeadlineTask(task);
-            }
-        }
-    }
-
-    private void printDeadlineTask(Task task) {
-        out.printf("       \t%d: %s%n", task.getId(), task.getDescription());
-    }
-
-    private void add(String commandLine) {
-        String[] subcommandRest = commandLine.split(" ", 2);
+    private void add(String args) {
+        String[] subcommandRest = args.split(" ", 2);
         String subcommand = subcommandRest[0];
+        String rest = subcommandRest.length > 1 ? subcommandRest[1] : "";
         if (subcommand.equals("project")) {
-            addProject(subcommandRest[1]);
+            if (rest.isBlank()) {
+                view.missingArguments("add project");
+                return;
+            }
+            service.addProject(rest);
         } else if (subcommand.equals("task")) {
-            String[] projectTask = subcommandRest[1].split(" ", 2);
+            String[] projectTask = rest.split(" ", 2);
+            if (projectTask.length < 2 || projectTask[1].isBlank()) {
+                view.missingArguments("add task");
+                return;
+            }
             addTask(projectTask[0], projectTask[1]);
+        } else {
+            view.missingArguments("add");
         }
     }
 
-    private void addProject(String name) {
-        tasks.put(name, new ArrayList<Task>());
+    private void addTask(String projectName, String description) {
+        if (service.addTask(projectName, description).isEmpty()) {
+            view.projectNotFound(projectName);
+        }
     }
 
-    private void addTask(String project, String description) {
-        List<Task> projectTasks = tasks.get(project);
-        if (projectTasks == null) {
-            out.printf("Could not find a project with the name \"%s\".", project);
-            out.println();
+    private void setDone(String idString, boolean done, String command) {
+        if (idString.isBlank()) {
+            view.missingArguments(command);
             return;
         }
-        projectTasks.add(new Task(nextId(), description, false));
-    }
-
-    private void check(String idString) {
-        setDone(idString, true);
-    }
-
-    private void uncheck(String idString) {
-        setDone(idString, false);
-    }
-
-    private void setDone(String idString, boolean done) {
-        int id = Integer.parseInt(idString);
-        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
-            for (Task task : project.getValue()) {
-                if (task.getId() == id) {
-                    task.setDone(done);
-                    return;
-                }
-            }
+        Optional<Long> id = parseId(idString);
+        if (id.isEmpty()) {
+            return;
         }
-        out.printf("Could not find a task with an ID of %d.", id);
-        out.println();
-    }
-
-    private void deadline(String commandLine) {
-        String[] idDate = commandLine.split(" ", 2);
-        long id = Long.parseLong(idDate[0]);
-        LocalDate date = LocalDate.parse(idDate[1], DEADLINE_FORMAT);
-        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
-            for (Task task : project.getValue()) {
-                if (task.getId() == id) {
-                    task.setDeadline(date);
-                    return;
-                }
-            }
+        if (!service.setDone(id.get(), done)) {
+            view.taskNotFound(id.get());
         }
-        out.printf("Could not find a task with an ID of %d.", id);
-        out.println();
     }
 
-    private void help() {
-        out.println("Commands:");
-        out.println("  show");
-        out.println("  add project <project name>");
-        out.println("  add task <project name> <task description>");
-        out.println("  check <task ID>");
-        out.println("  uncheck <task ID>");
-        out.println("  deadline <task ID> <date (dd-MM-yyyy)>");
-        out.println("  today");
-        out.println("  view-by-deadline");
-        out.println();
+    private void deadline(String args) {
+        String[] idDate = args.split(" ", 2);
+        if (idDate.length < 2 || idDate[1].isBlank()) {
+            view.missingArguments("deadline");
+            return;
+        }
+        Optional<Long> id = parseId(idDate[0]);
+        if (id.isEmpty()) {
+            return;
+        }
+        Optional<LocalDate> date = parseDeadline(idDate[1]);
+        if (date.isEmpty()) {
+            return;
+        }
+        if (!service.setDeadline(id.get(), date.get())) {
+            view.taskNotFound(id.get());
+        }
     }
 
-    private void error(String command) {
-        out.printf("I don't know what the command \"%s\" is.", command);
-        out.println();
+    private Optional<Long> parseId(String value) {
+        try {
+            return Optional.of(Long.parseLong(value.trim()));
+        } catch (NumberFormatException e) {
+            view.invalidTaskId(value);
+            return Optional.empty();
+        }
     }
 
-    private long nextId() {
-        return ++lastId;
+    private Optional<LocalDate> parseDeadline(String value) {
+        try {
+            return Optional.of(LocalDate.parse(value.trim(), DEADLINE_FORMAT));
+        } catch (DateTimeParseException e) {
+            view.invalidDate(value);
+            return Optional.empty();
+        }
     }
 }
