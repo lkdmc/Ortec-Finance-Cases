@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Optional;
 
 /**
  * Console interface for the task list.
@@ -54,21 +56,22 @@ public final class TaskList implements Runnable {
     private void execute(String commandLine) {
         String[] commandRest = commandLine.split(" ", 2);
         String command = commandRest[0];
+        String args = commandRest.length > 1 ? commandRest[1] : "";
         switch (command) {
             case "show":
                 view.showProjects(service.getProjects());
                 break;
             case "add":
-                add(commandRest[1]);
+                add(args);
                 break;
             case "check":
-                setDone(commandRest[1], true);
+                setDone(args, true, "check");
                 break;
             case "uncheck":
-                setDone(commandRest[1], false);
+                setDone(args, false, "uncheck");
                 break;
             case "deadline":
-                deadline(commandRest[1]);
+                deadline(args);
                 break;
             case "today":
                 view.showTasksDueToday(service.getProjects());
@@ -85,14 +88,25 @@ public final class TaskList implements Runnable {
         }
     }
 
-    private void add(String commandLine) {
-        String[] subcommandRest = commandLine.split(" ", 2);
+    private void add(String args) {
+        String[] subcommandRest = args.split(" ", 2);
         String subcommand = subcommandRest[0];
+        String rest = subcommandRest.length > 1 ? subcommandRest[1] : "";
         if (subcommand.equals("project")) {
-            service.addProject(subcommandRest[1]);
+            if (rest.isBlank()) {
+                view.missingArguments("add project");
+                return;
+            }
+            service.addProject(rest);
         } else if (subcommand.equals("task")) {
-            String[] projectTask = subcommandRest[1].split(" ", 2);
+            String[] projectTask = rest.split(" ", 2);
+            if (projectTask.length < 2 || projectTask[1].isBlank()) {
+                view.missingArguments("add task");
+                return;
+            }
             addTask(projectTask[0], projectTask[1]);
+        } else {
+            view.missingArguments("add");
         }
     }
 
@@ -102,19 +116,54 @@ public final class TaskList implements Runnable {
         }
     }
 
-    private void setDone(String idString, boolean done) {
-        long id = Long.parseLong(idString);
-        if (!service.setDone(id, done)) {
-            view.taskNotFound(id);
+    private void setDone(String idString, boolean done, String command) {
+        if (idString.isBlank()) {
+            view.missingArguments(command);
+            return;
+        }
+        Optional<Long> id = parseId(idString);
+        if (id.isEmpty()) {
+            return;
+        }
+        if (!service.setDone(id.get(), done)) {
+            view.taskNotFound(id.get());
         }
     }
 
-    private void deadline(String commandLine) {
-        String[] idDate = commandLine.split(" ", 2);
-        long id = Long.parseLong(idDate[0]);
-        LocalDate date = LocalDate.parse(idDate[1], DEADLINE_FORMAT);
-        if (!service.setDeadline(id, date)) {
-            view.taskNotFound(id);
+    private void deadline(String args) {
+        String[] idDate = args.split(" ", 2);
+        if (idDate.length < 2 || idDate[1].isBlank()) {
+            view.missingArguments("deadline");
+            return;
+        }
+        Optional<Long> id = parseId(idDate[0]);
+        if (id.isEmpty()) {
+            return;
+        }
+        Optional<LocalDate> date = parseDeadline(idDate[1]);
+        if (date.isEmpty()) {
+            return;
+        }
+        if (!service.setDeadline(id.get(), date.get())) {
+            view.taskNotFound(id.get());
+        }
+    }
+
+    private Optional<Long> parseId(String value) {
+        try {
+            return Optional.of(Long.parseLong(value.trim()));
+        } catch (NumberFormatException e) {
+            view.invalidTaskId(value);
+            return Optional.empty();
+        }
+    }
+
+    private Optional<LocalDate> parseDeadline(String value) {
+        try {
+            return Optional.of(LocalDate.parse(value.trim(), DEADLINE_FORMAT));
+        } catch (DateTimeParseException e) {
+            view.invalidDate(value);
+            return Optional.empty();
         }
     }
 }

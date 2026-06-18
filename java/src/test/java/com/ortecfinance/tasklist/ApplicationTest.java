@@ -177,6 +177,47 @@ public final class ApplicationTest {
         execute("quit");
     }
 
+    @Test
+    void reports_an_invalid_date_and_keeps_running() throws IOException {
+        execute("add project secrets");
+        execute("add task secrets Eat more donuts.");
+
+        execute("deadline 1 not-a-date");
+        readLines("Could not parse \"not-a-date\" as a date. Use the format dd-MM-yyyy.");
+
+        // The application must recover and keep processing commands.
+        execute("show");
+        readLines(
+            "secrets",
+            "    [ ] 1: Eat more donuts.",
+            ""
+        );
+
+        execute("quit");
+    }
+
+    @Test
+    void reports_an_invalid_task_id() throws IOException {
+        execute("check abc");
+        readLines("Could not parse \"abc\" as a task ID.");
+
+        execute("quit");
+    }
+
+    @Test
+    void reports_missing_arguments() throws IOException {
+        execute("deadline 1");
+        readLines("The \"deadline\" command needs more arguments. Type 'help' for usage.");
+
+        execute("add task secrets");
+        readLines("The \"add task\" command needs more arguments. Type 'help' for usage.");
+
+        execute("check");
+        readLines("The \"check\" command needs more arguments. Type 'help' for usage.");
+
+        execute("quit");
+    }
+
     private void execute(String command) throws IOException {
         read(PROMPT);
         write(command);

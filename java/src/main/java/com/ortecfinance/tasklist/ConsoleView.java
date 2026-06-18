@@ -111,6 +111,21 @@ final class ConsoleView {
         out.println();
     }
 
+    void missingArguments(String command) {
+        out.printf("The \"%s\" command needs more arguments. Type 'help' for usage.", command);
+        out.println();
+    }
+
+    void invalidTaskId(String value) {
+        out.printf("Could not parse \"%s\" as a task ID.", value);
+        out.println();
+    }
+
+    void invalidDate(String value) {
+        out.printf("Could not parse \"%s\" as a date. Use the format dd-MM-yyyy.", value);
+        out.println();
+    }
+
     void projectNotFound(String name) {
         out.printf("Could not find a project with the name \"%s\".", name);
         out.println();
