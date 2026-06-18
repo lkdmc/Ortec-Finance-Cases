@@ -3,6 +3,8 @@ package com.ortecfinance.tasklist;
 import org.junit.jupiter.api.*;
 
 import java.io.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import static java.lang.System.lineSeparator;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -89,6 +91,56 @@ public final class ApplicationTest {
                 "    [ ] 7: Outside-In TDD",
                 "    [ ] 8: Interaction-Driven Design",
                 ""
+        );
+
+        execute("quit");
+    }
+
+    @Test
+    void deadline_command_is_accepted_for_an_existing_task() throws IOException {
+        execute("add project secrets");
+        execute("add task secrets Eat more donuts.");
+
+        execute("deadline 1 20-06-2026");
+
+        execute("show");
+        readLines(
+            "secrets",
+            "    [ ] 1: Eat more donuts.",
+            ""
+        );
+
+        execute("quit");
+    }
+
+    @Test
+    void deadline_command_reports_when_the_task_does_not_exist() throws IOException {
+        execute("deadline 99 20-06-2026");
+        readLines("Could not find a task with an ID of 99.");
+
+        execute("quit");
+    }
+
+    @Test
+    void today_shows_only_tasks_with_a_deadline_of_today() throws IOException {
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        String today = LocalDate.now().format(format);
+        String tomorrow = LocalDate.now().plusDays(1).format(format);
+
+        execute("add project secrets");
+        execute("add task secrets Eat more donuts.");
+        execute("add task secrets Destroy all humans.");
+        execute("add project training");
+        execute("add task training Refactor the codebase");
+
+        execute("deadline 1 " + today);
+        execute("deadline 2 " + tomorrow);
+
+        execute("today");
+        readLines(
+            "secrets",
+            "    [ ] 1: Eat more donuts.",
+            ""
         );
 
         execute("quit");
