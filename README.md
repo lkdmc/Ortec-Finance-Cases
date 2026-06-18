@@ -2,6 +2,8 @@
 > Run tests with `cd java && mvn test`. 
 > See [docs/API.md](docs/API.md) for the console commands and REST endpoints.
 
+[![CI](https://github.com/lkdmc/Ortec-Finance-Cases/actions/workflows/ci.yml/badge.svg)](https://github.com/lkdmc/Ortec-Finance-Cases/actions/workflows/ci.yml)
+
 # Task List
 
 You have been handed over an existing (fictional) codebase of a task list application. This application allows you to create projects, add tasks to those projects, check and uncheck them, and view tasks by project.
