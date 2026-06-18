@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public final class TaskList implements Runnable {
     private static final String QUIT = "quit";
@@ -72,6 +73,9 @@ public final class TaskList implements Runnable {
             case "today":
                 today();
                 break;
+            case "view-by-deadline":
+                viewByDeadline();
+                break;
             case "help":
                 help();
                 break;
@@ -113,6 +117,37 @@ public final class TaskList implements Runnable {
 
     private void printTask(Task task) {
         out.printf("    [%c] %d: %s%n", (task.isDone() ? 'x' : ' '), task.getId(), task.getDescription());
+    }
+
+    private void viewByDeadline() {
+        Map<LocalDate, List<Task>> tasksByDeadline = new TreeMap<>();
+        List<Task> withoutDeadline = new ArrayList<>();
+        for (List<Task> projectTasks : tasks.values()) {
+            for (Task task : projectTasks) {
+                if (task.getDeadline() == null) {
+                    withoutDeadline.add(task);
+                } else {
+                    tasksByDeadline.computeIfAbsent(task.getDeadline(), date -> new ArrayList<>()).add(task);
+                }
+            }
+        }
+
+        for (Map.Entry<LocalDate, List<Task>> entry : tasksByDeadline.entrySet()) {
+            out.println(entry.getKey().format(DEADLINE_FORMAT) + ":");
+            for (Task task : entry.getValue()) {
+                printDeadlineTask(task);
+            }
+        }
+        if (!withoutDeadline.isEmpty()) {
+            out.println("No deadline:");
+            for (Task task : withoutDeadline) {
+                printDeadlineTask(task);
+            }
+        }
+    }
+
+    private void printDeadlineTask(Task task) {
+        out.printf("       %d: %s%n", task.getId(), task.getDescription());
     }
 
     private void add(String commandLine) {
@@ -187,6 +222,7 @@ public final class TaskList implements Runnable {
         out.println("  uncheck <task ID>");
         out.println("  deadline <task ID> <date (dd-MM-yyyy)>");
         out.println("  today");
+        out.println("  view-by-deadline");
         out.println();
     }
 
