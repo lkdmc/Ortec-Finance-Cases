@@ -43,6 +43,13 @@ class ProjectControllerTest {
     }
 
     @Test
+    void returns_an_empty_list_when_there_are_no_projects() throws Exception {
+        mockMvc.perform(get("/projects"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     void rejects_a_project_without_a_name() throws Exception {
         mockMvc.perform(post("/projects").contentType(APPLICATION_JSON).content("{\"name\":\"\"}"))
             .andExpect(status().isBadRequest())
@@ -91,6 +98,15 @@ class ProjectControllerTest {
         mockMvc.perform(put("/projects/1/tasks/1").param("deadline", "not-a-date"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Deadline must use the format dd-MM-yyyy."));
+    }
+
+    @Test
+    void returns_404_when_updating_the_deadline_of_an_unknown_task() throws Exception {
+        createProject("secrets");
+
+        mockMvc.perform(put("/projects/1/tasks/99").param("deadline", "25-11-2024"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("Could not find a task with the id 99."));
     }
 
     @Test

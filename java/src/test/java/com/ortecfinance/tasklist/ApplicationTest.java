@@ -218,6 +218,22 @@ public final class ApplicationTest {
         execute("quit");
     }
 
+    @Test
+    void reports_when_adding_a_task_to_an_unknown_project() throws IOException {
+        execute("add task missing Some task");
+        readLines("Could not find a project with the name \"missing\".");
+
+        execute("quit");
+    }
+
+    @Test
+    void reports_an_unknown_command() throws IOException {
+        execute("foobar");
+        readLines("I don't know what the command \"foobar\" is.");
+
+        execute("quit");
+    }
+
     private void execute(String command) throws IOException {
         read(PROMPT);
         write(command);
