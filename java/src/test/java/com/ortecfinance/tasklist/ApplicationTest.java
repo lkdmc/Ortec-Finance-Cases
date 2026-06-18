@@ -242,8 +242,17 @@ public final class ApplicationTest {
     private void read(String expectedOutput) throws IOException {
         int length = expectedOutput.length();
         char[] buffer = new char[length];
-        outReader.read(buffer, 0, length);
-        assertThat(String.valueOf(buffer), is(expectedOutput));
+        // Reader.read may return fewer characters than requested, so keep
+        // reading until the buffer is full (or the stream ends).
+        int total = 0;
+        while (total < length) {
+            int count = outReader.read(buffer, total, length - total);
+            if (count == -1) {
+                break;
+            }
+            total += count;
+        }
+        assertThat(String.valueOf(buffer, 0, total), is(expectedOutput));
     }
 
     private void readLines(String... expectedOutput) throws IOException {
