@@ -94,6 +94,31 @@ public final class ApplicationTest {
         execute("quit");
     }
 
+    @Test
+    void deadline_command_is_accepted_for_an_existing_task() throws IOException {
+        execute("add project secrets");
+        execute("add task secrets Eat more donuts.");
+
+        execute("deadline 1 20-06-2026");
+
+        execute("show");
+        readLines(
+            "secrets",
+            "    [ ] 1: Eat more donuts.",
+            ""
+        );
+
+        execute("quit");
+    }
+
+    @Test
+    void deadline_command_reports_when_the_task_does_not_exist() throws IOException {
+        execute("deadline 99 20-06-2026");
+        readLines("Could not find a task with an ID of 99.");
+
+        execute("quit");
+    }
+
     private void execute(String command) throws IOException {
         read(PROMPT);
         write(command);

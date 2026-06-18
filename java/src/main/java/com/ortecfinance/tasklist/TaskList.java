@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.Map;
 
 public final class TaskList implements Runnable {
     private static final String QUIT = "quit";
+    private static final DateTimeFormatter DEADLINE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private final Map<String, List<Task>> tasks = new LinkedHashMap<>();
     private final BufferedReader in;
@@ -62,6 +65,9 @@ public final class TaskList implements Runnable {
                 break;
             case "uncheck":
                 uncheck(commandRest[1]);
+                break;
+            case "deadline":
+                deadline(commandRest[1]);
                 break;
             case "help":
                 help();
@@ -129,6 +135,22 @@ public final class TaskList implements Runnable {
         out.println();
     }
 
+    private void deadline(String commandLine) {
+        String[] idDate = commandLine.split(" ", 2);
+        long id = Long.parseLong(idDate[0]);
+        LocalDate date = LocalDate.parse(idDate[1], DEADLINE_FORMAT);
+        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
+            for (Task task : project.getValue()) {
+                if (task.getId() == id) {
+                    task.setDeadline(date);
+                    return;
+                }
+            }
+        }
+        out.printf("Could not find a task with an ID of %d.", id);
+        out.println();
+    }
+
     private void help() {
         out.println("Commands:");
         out.println("  show");
@@ -136,6 +158,7 @@ public final class TaskList implements Runnable {
         out.println("  add task <project name> <task description>");
         out.println("  check <task ID>");
         out.println("  uncheck <task ID>");
+        out.println("  deadline <task ID> <date (dd-MM-yyyy)>");
         out.println();
     }
 
