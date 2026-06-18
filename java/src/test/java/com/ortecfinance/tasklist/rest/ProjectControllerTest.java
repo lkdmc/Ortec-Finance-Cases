@@ -23,7 +23,9 @@ class ProjectControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new ProjectController(new TaskService())).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new ProjectController(new TaskService()))
+            .setControllerAdvice(new RestExceptionHandler())
+            .build();
     }
 
     @Test
@@ -43,7 +45,11 @@ class ProjectControllerTest {
     @Test
     void rejects_a_project_without_a_name() throws Exception {
         mockMvc.perform(post("/projects").contentType(APPLICATION_JSON).content("{\"name\":\"\"}"))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("Bad Request"))
+            .andExpect(jsonPath("$.message").value("Project name is required."))
+            .andExpect(jsonPath("$.path").value("/projects"));
     }
 
     @Test
@@ -63,7 +69,8 @@ class ProjectControllerTest {
     void returns_404_when_adding_a_task_to_an_unknown_project() throws Exception {
         mockMvc.perform(post("/projects/99/tasks").contentType(APPLICATION_JSON)
                 .content("{\"description\":\"Nope\"}"))
-            .andExpect(status().isNotFound());
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("Could not find a project with the id 99."));
     }
 
     @Test
@@ -82,7 +89,8 @@ class ProjectControllerTest {
         createTask(1, "Eat more donuts.");
 
         mockMvc.perform(put("/projects/1/tasks/1").param("deadline", "not-a-date"))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Deadline must use the format dd-MM-yyyy."));
     }
 
     @Test
