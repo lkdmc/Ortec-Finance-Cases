@@ -120,34 +120,43 @@ public final class TaskList implements Runnable {
     }
 
     private void viewByDeadline() {
-        Map<LocalDate, List<Task>> tasksByDeadline = new TreeMap<>();
-        List<Task> withoutDeadline = new ArrayList<>();
-        for (List<Task> projectTasks : tasks.values()) {
-            for (Task task : projectTasks) {
+        Map<LocalDate, Map<String, List<Task>>> tasksByDeadline = new TreeMap<>();
+        Map<String, List<Task>> withoutDeadline = new LinkedHashMap<>();
+        for (Map.Entry<String, List<Task>> project : tasks.entrySet()) {
+            String projectName = project.getKey();
+            for (Task task : project.getValue()) {
                 if (task.getDeadline() == null) {
-                    withoutDeadline.add(task);
+                    withoutDeadline.computeIfAbsent(projectName, name -> new ArrayList<>()).add(task);
                 } else {
-                    tasksByDeadline.computeIfAbsent(task.getDeadline(), date -> new ArrayList<>()).add(task);
+                    tasksByDeadline
+                        .computeIfAbsent(task.getDeadline(), date -> new LinkedHashMap<>())
+                        .computeIfAbsent(projectName, name -> new ArrayList<>())
+                        .add(task);
                 }
             }
         }
 
-        for (Map.Entry<LocalDate, List<Task>> entry : tasksByDeadline.entrySet()) {
+        for (Map.Entry<LocalDate, Map<String, List<Task>>> entry : tasksByDeadline.entrySet()) {
             out.println(entry.getKey().format(DEADLINE_FORMAT) + ":");
-            for (Task task : entry.getValue()) {
-                printDeadlineTask(task);
-            }
+            printTasksByProject(entry.getValue());
         }
         if (!withoutDeadline.isEmpty()) {
             out.println("No deadline:");
-            for (Task task : withoutDeadline) {
+            printTasksByProject(withoutDeadline);
+        }
+    }
+
+    private void printTasksByProject(Map<String, List<Task>> tasksByProject) {
+        for (Map.Entry<String, List<Task>> project : tasksByProject.entrySet()) {
+            out.println("     " + project.getKey() + ":");
+            for (Task task : project.getValue()) {
                 printDeadlineTask(task);
             }
         }
     }
 
     private void printDeadlineTask(Task task) {
-        out.printf("       %d: %s%n", task.getId(), task.getDescription());
+        out.printf("       \t%d: %s%n", task.getId(), task.getDescription());
     }
 
     private void add(String commandLine) {

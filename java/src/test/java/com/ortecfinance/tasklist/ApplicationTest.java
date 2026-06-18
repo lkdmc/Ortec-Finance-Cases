@@ -147,7 +147,7 @@ public final class ApplicationTest {
     }
 
     @Test
-    void view_by_deadline_groups_tasks_by_date_chronologically_with_no_deadline_last() throws IOException {
+    void view_by_deadline_groups_tasks_by_date_then_by_project_with_no_deadline_last() throws IOException {
         execute("add project secrets");
         execute("add task secrets Eat more donuts.");
         execute("add project training");
@@ -162,12 +162,16 @@ public final class ApplicationTest {
         execute("view-by-deadline");
         readLines(
             "11-11-2021:",
-            "       1: Eat more donuts.",
-            "       4: Four Elements of Simple Design",
+            "     secrets:",
+            "       \t1: Eat more donuts.",
+            "     training:",
+            "       \t4: Four Elements of Simple Design",
             "13-11-2021:",
-            "       3: Interaction-Driven Design",
+            "     training:",
+            "       \t3: Interaction-Driven Design",
             "No deadline:",
-            "       2: Refactor the codebase"
+            "     training:",
+            "       \t2: Refactor the codebase"
         );
 
         execute("quit");
