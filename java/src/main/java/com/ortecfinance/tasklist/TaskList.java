@@ -144,7 +144,7 @@ public final class TaskList implements Runnable {
         if (date.isEmpty()) {
             return;
         }
-        if (!service.setDeadline(id.get(), date.get())) {
+        if (service.setDeadline(id.get(), date.get()).isEmpty()) {
             view.taskNotFound(id.get());
         }
     }

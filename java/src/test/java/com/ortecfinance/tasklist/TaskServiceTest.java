@@ -80,17 +80,34 @@ class TaskServiceTest {
     }
 
     @Test
+    void adds_a_task_to_a_project_by_id() {
+        long projectId = service.addProject("secrets").getId();
+
+        Optional<Task> added = service.addTask(projectId, "Eat more donuts.");
+
+        assertTrue(added.isPresent());
+        assertEquals("Eat more donuts.", added.get().getDescription());
+    }
+
+    @Test
+    void does_not_add_a_task_when_the_project_id_is_unknown() {
+        assertTrue(service.addTask(99L, "Nope").isEmpty());
+    }
+
+    @Test
     void sets_a_deadline_on_an_existing_task() {
         long id = givenATask();
         LocalDate deadline = LocalDate.of(2024, 11, 25);
 
-        assertTrue(service.setDeadline(id, deadline));
-        assertEquals(deadline, findTask(id).getDeadline());
+        Optional<Task> updated = service.setDeadline(id, deadline);
+
+        assertTrue(updated.isPresent());
+        assertEquals(deadline, updated.get().getDeadline());
     }
 
     @Test
     void reports_when_setting_a_deadline_on_an_unknown_task() {
-        assertFalse(service.setDeadline(99, LocalDate.now()));
+        assertTrue(service.setDeadline(99, LocalDate.now()).isEmpty());
     }
 
     @Test

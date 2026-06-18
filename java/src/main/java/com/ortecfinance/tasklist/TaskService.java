@@ -32,12 +32,24 @@ public final class TaskService {
     }
 
     /**
-     * Adds a task to an existing project.
+     * Adds a task to an existing project, located by name.
      *
      * @return the created task, or {@link Optional#empty()} if no project has the given name.
      */
     public Optional<Task> addTask(String projectName, String description) {
-        Project project = projects.get(projectName);
+        return addTaskTo(projects.get(projectName), description);
+    }
+
+    /**
+     * Adds a task to an existing project, located by id.
+     *
+     * @return the created task, or {@link Optional#empty()} if no project has the given id.
+     */
+    public Optional<Task> addTask(long projectId, String description) {
+        return addTaskTo(findProjectById(projectId), description);
+    }
+
+    private Optional<Task> addTaskTo(Project project, String description) {
         if (project == null) {
             return Optional.empty();
         }
@@ -63,20 +75,29 @@ public final class TaskService {
     /**
      * Sets the deadline of the task with the given id.
      *
-     * @return {@code true} if a task with that id existed.
+     * @return the updated task, or {@link Optional#empty()} if no task has that id.
      */
-    public boolean setDeadline(long id, LocalDate deadline) {
+    public Optional<Task> setDeadline(long id, LocalDate deadline) {
         Task task = findById(id);
         if (task == null) {
-            return false;
+            return Optional.empty();
         }
         task.setDeadline(deadline);
-        return true;
+        return Optional.of(task);
     }
 
     /** Returns all projects in creation order, as an unmodifiable view. */
     public Collection<Project> getProjects() {
         return Collections.unmodifiableCollection(projects.values());
+    }
+
+    private Project findProjectById(long id) {
+        for (Project project : projects.values()) {
+            if (project.getId() == id) {
+                return project;
+            }
+        }
+        return null;
     }
 
     private Task findById(long id) {
