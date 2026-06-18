@@ -111,6 +111,24 @@ class TaskServiceTest {
     }
 
     @Test
+    void groups_tasks_by_deadline_chronologically_and_separates_those_without() {
+        service.addProject("secrets");
+        service.addProject("training");
+        long donuts = service.addTask("secrets", "Eat more donuts.").orElseThrow().getId();
+        service.addTask("training", "Refactor the codebase");
+        long design = service.addTask("training", "Interaction-Driven Design").orElseThrow().getId();
+
+        // Set the later date first to prove the result is sorted, not insertion-ordered.
+        service.setDeadline(design, LocalDate.of(2021, 11, 13));
+        service.setDeadline(donuts, LocalDate.of(2021, 11, 11));
+
+        assertEquals(
+            List.of(LocalDate.of(2021, 11, 11), LocalDate.of(2021, 11, 13)),
+            List.copyOf(service.tasksByDeadline().keySet()));
+        assertEquals(List.of("training"), List.copyOf(service.tasksWithoutDeadline().keySet()));
+    }
+
+    @Test
     void keeps_projects_in_creation_order() {
         service.addProject("first");
         service.addProject("second");

@@ -18,7 +18,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST endpoints for projects and their tasks.
@@ -43,6 +45,23 @@ public class ProjectController {
         return service.getProjects().stream()
             .map(ProjectResponse::from)
             .toList();
+    }
+
+    /**
+     * Returns all tasks grouped by deadline (chronological) and then by project.
+     * The group without a deadline, if any, comes last with a {@code null} date.
+     */
+    @GetMapping("/view_by_deadline")
+    public List<DeadlineGroupResponse> viewByDeadline() {
+        List<DeadlineGroupResponse> groups = new ArrayList<>();
+        service.tasksByDeadline().forEach((date, tasksByProject) ->
+            groups.add(DeadlineGroupResponse.of(date.format(DEADLINE_FORMAT), tasksByProject)));
+
+        Map<String, List<Task>> withoutDeadline = service.tasksWithoutDeadline();
+        if (!withoutDeadline.isEmpty()) {
+            groups.add(DeadlineGroupResponse.of(null, withoutDeadline));
+        }
+        return groups;
     }
 
     /** Creates a new project and returns it, including its generated id. */

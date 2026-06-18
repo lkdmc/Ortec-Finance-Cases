@@ -1,11 +1,14 @@
 package com.ortecfinance.tasklist;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /**
  * Core task-management logic, independent of any user interface.
@@ -89,6 +92,40 @@ public final class TaskService {
     /** Returns all projects in creation order, as an unmodifiable view. */
     public Collection<Project> getProjects() {
         return Collections.unmodifiableCollection(projects.values());
+    }
+
+    /**
+     * Groups the tasks that have a deadline, by deadline and then by project name.
+     *
+     * <p>The outer map is ordered chronologically by deadline, and within each
+     * deadline the projects keep their original creation order.
+     */
+    public Map<LocalDate, Map<String, List<Task>>> tasksByDeadline() {
+        Map<LocalDate, Map<String, List<Task>>> grouped = new TreeMap<>();
+        for (Project project : projects.values()) {
+            for (Task task : project.getTasks()) {
+                if (task.getDeadline() != null) {
+                    grouped
+                        .computeIfAbsent(task.getDeadline(), date -> new LinkedHashMap<>())
+                        .computeIfAbsent(project.getName(), name -> new ArrayList<>())
+                        .add(task);
+                }
+            }
+        }
+        return grouped;
+    }
+
+    /** Groups the tasks that have no deadline, by project name in creation order. */
+    public Map<String, List<Task>> tasksWithoutDeadline() {
+        Map<String, List<Task>> grouped = new LinkedHashMap<>();
+        for (Project project : projects.values()) {
+            for (Task task : project.getTasks()) {
+                if (task.getDeadline() == null) {
+                    grouped.computeIfAbsent(project.getName(), name -> new ArrayList<>()).add(task);
+                }
+            }
+        }
+        return grouped;
     }
 
     private Project findProjectById(long id) {

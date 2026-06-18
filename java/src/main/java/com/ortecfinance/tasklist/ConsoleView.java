@@ -5,10 +5,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * Renders task data as the console's textual output.
@@ -68,26 +66,12 @@ final class ConsoleView {
         }
     }
 
-    /** Lists all tasks grouped by deadline (chronological) and then by project. */
-    void showByDeadline(Collection<Project> projects) {
-        // TreeMap keeps the dates chronological; the inner LinkedHashMap keeps
-        // the projects in their original creation order.
-        Map<LocalDate, Map<String, List<Task>>> tasksByDeadline = new TreeMap<>();
-        Map<String, List<Task>> withoutDeadline = new LinkedHashMap<>();
-        for (Project project : projects) {
-            String projectName = project.getName();
-            for (Task task : project.getTasks()) {
-                if (task.getDeadline() == null) {
-                    withoutDeadline.computeIfAbsent(projectName, name -> new ArrayList<>()).add(task);
-                } else {
-                    tasksByDeadline
-                        .computeIfAbsent(task.getDeadline(), date -> new LinkedHashMap<>())
-                        .computeIfAbsent(projectName, name -> new ArrayList<>())
-                        .add(task);
-                }
-            }
-        }
-
+    /**
+     * Lists all tasks grouped by deadline (chronological) and then by project.
+     * The grouping is computed by {@link TaskService}; this method only formats it.
+     */
+    void showByDeadline(Map<LocalDate, Map<String, List<Task>>> tasksByDeadline,
+                        Map<String, List<Task>> withoutDeadline) {
         for (Map.Entry<LocalDate, Map<String, List<Task>>> entry : tasksByDeadline.entrySet()) {
             out.println(entry.getKey().format(DEADLINE_FORMAT) + ":");
             printTasksByProject(entry.getValue());
